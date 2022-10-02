@@ -1,0 +1,154 @@
+review code as a group and understand whats happening in new code base
+
+add passport: config/passport.js
+              add to server.js -> add sessions - keep logged in on refresh. initialize passport middleware 
+                    passport config
+              add middleware/auth.js
+
+why is individual login important?
+    for personal use. 
+    Users have their own experience in web app
+
+EnsureAuth - 
+routes/todos.js -> router.get('/', ensureAuth, todosController.getTodos)
+ensureAuth before the controller is a middleware that checks user is logged in. If not logged in, redirect
+
+Try to go straight to localhost:2121/todos and hit enter, make a GET request on todo Route.
+    Starting with the routes: server.js app.use('/todos', todoRoutes). Look at todoRoutes 
+    Routes/todos.js -> what kind of request are we making? router.get('/', ensureAuth, todosController.getTodos)
+    EnsureAuth makes sure logged in and run todosController.getTodos, if not redirect
+    Do we need ensureAuth on other requests? get, delete, update etc. Can't access those pages without logging in (exception: postman)
+
+    todosController -> controllers/todos.js
+        getTodos -> (req.user) can see logged in users. Console.log to see all their info.
+            each new user gets new id: if user has unique id, grab todo with matching userId
+
+    If you have users logging into the database, we have to have MODELS.
+        models/user.js : const UserSchema
+        passwords will be BCRYPT to hash in database. BCRYPT and passport takes care of it. called SALTING. Salting is encrypting the password to store in db
+
+        Found on passport website under strategy to copy to models/user.js
+
+        When you put user into collection on mongoDB, _id is applied to each new object
+
+    middleware/auth.js -> module.exports = {
+        ensureAuth: function (etc)
+    }
+    if not logged in, redirect('/')
+
+UserId property, when a user is logged in, create a todo, take their ID and store in db with todo object
+user id has to match bob's id and we know bob made that todo, and we can render it into the dom
+
+createTodo in controllers/todos.js. Get the todo, we only get it for the logged in users id
+
+
+Login process
+    When clicking submit on sign up form, sends a post request. What is the route?
+    In inspector, we can see it belongs to signup route. 
+    routes/main.js has all the routes of the application. get('/'), ('/login'). post('/login'). get('/logout)
+    controller/auth.js postSignup. Checks for valid email and password correct length and pw match. Gives validation errors if wrong.
+    const user = new User is the model. Grab userName, email, password form the form to make new user.
+    Routes/main.js. Look at which controller to use. See router.post('/signup', authController.postSignup) <- FANCY CLICK EVENT. post on sign up
+    controller/auth -> postSignup. Once user created and logged in, res.redirect('/todos'). Sends to todos as the new user
+
+
+review:
+client makes request to server (get req). 
+    Log in or sign up redirects you to someurl.com/todos 
+Server side code enables machine to listen to request and know what to do. Running code we wrote to handle the request.
+    server.js -> app.use('/', mainRoutes) | app.use('/todos', todoRoutes)
+    request made: is it on main route or todo route? TODO route
+        server.js -> top has todoRoutes variable. Go to routes folder and find todos.js file.
+        todos.js has full list of requests. 
+    What type of request came through? GET request
+        router.get checks if user logged in : ensureAuth
+        ensureAuth(destructured {}) var up top in todo.js file require us to go to middleware/auth.js file
+        middleware/auth.js -> are you logged in? module.exports an object that contains the method ensureAuth: 
+            req.isAuthenticated checks if they are logged in, if not kick them out redirect('/')
+
+        gap
+
+        logged in but what controller?
+        routes/todos.js. in router.get -> todosController. Var above
+
+        gap
+
+        module.exports object 
+        controllers/todos.js. var Todo requires us to go to models/todo.js 
+
+    Mongoose - models/todos.js. Lets us talk to database and allows us to use the model. Gives us a structure called schema of database.
+            Mongoose provides a straight-forward schema-based solution to model your application data.
+            each schema maps to a mongodb collection and defines the shape of the documents within the collection. ex) each user will have username, pw
+            Models are fancy constructors complied from schema defintions. Instance of a model is a document. 
+            Models are responsible for creating and reading documents from the underlying mongodb database
+            Every time you create a todo: gave a user _id property. createTodo function 
+            controllers/todos.js 
+                const todoItems = await finds unique userId. Query mongodb and find all entries. Then render it into dom to see
+                Run through todos, pass through views, and pass each todo 
+            
+
+Auth review: pick up at 47 mins in
+
+sessions - creates a cookie that matches the session so site remembers user. 
+    check: inspect page - application - storage - cookies - _id will show up from mongoDb sessions
+    const session / mongostore
+    server.js - app.use session - mongostore
+    mongodb has a seperate session - _id will contain id for cookie.
+
+    express-session creates the cookie, mongoStore stores the session objects in the db.
+    when coming back the browser gives the server the cookie, mongostore finds the session for that cookie and gives back to server
+    passport grabs the user id from the session and gets it from the db
+
+passport.js - update mongoose code. Lot of it is not needed anymore
+
+need to update npm packages - npm outdated. update before starting project
+    npm install multer --save  : to get latest version forced
+
+
+Setup a new user:
+    post request 
+    user schema help build out user info. Pw hashed via BCRYPT
+    Pw turned to hash and will check if pw matches when they login. Hashes will match
+
+controllers/auth.js 
+    user models -> validation
+    exports.postLogin - check if valid email in and pw not blank
+
+views/signup.ejs / login.ejs
+    flash validation pops up in the dom. messages.errors.forEach. pass into the div and msg show up.
+    alert alert-danger - from bootstrap
+
+
+Planning full stack social app
+    auth - need passport, passport helps create users. Need a collection for users
+        users will have a schema: _id: 100, user name: bob, email: bob@b.com, password: hash
+    profile
+    feed
+    posts -> delete, comment, like
+        posts collection - schema - structure of document. 
+        Each post will have _id: 500, img: url/img, likes: 3, caption: str, createdBy: 100, delted: false
+        Each post will have unique user id. Make request to post collection and another request to user _id to see who posted. localhost:2121/post/501
+
+        create a feed: make a request to find all posts. pass all post to ejs and contains all post in collection. Maybe just grab a few (most recent 3-5)
+
+        create profile: picture needs to be added to user schema
+        profile location: localhost:2121/profile/100
+        Use user id to find username and posts. Pull data from 2 collections
+
+        form for bob to make new posts: if bob is logged in, then can make posts
+        form: caption, file upload (img)
+        when submit form: post request heard by server, server creates post with unique id containing img and likes can go up.
+
+        comments: need new collection. _id:720, comment: str, madeBy: 102(sarah), postid: which post comment was made on
+        person needs a form to input comment. Add likes to comments
+
+        add friends to user?
+        Use array called friends: [103, 104, 105, etc]
+
+    add later?
+    friends
+    dms
+
+
+thur how to add to it - make it your own
+     will go through code thur as well

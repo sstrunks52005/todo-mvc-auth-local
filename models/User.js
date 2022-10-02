@@ -1,6 +1,7 @@
 const bcrypt = require('bcrypt')
 const mongoose = require('mongoose')
 
+// schema for mongoose are just constructor objects - creates a new document containing user/email/pw
 const UserSchema = new mongoose.Schema({
   userName: { type: String, unique: true },
   email: { type: String, unique: true },
@@ -8,8 +9,7 @@ const UserSchema = new mongoose.Schema({
 })
 
 
-// Password hash middleware.
- 
+// Password hash middleware. Stop plain-text password so you can't see what peoples' pw are. Hash/salting password
  UserSchema.pre('save', function save(next) {
   const user = this
   if (!user.isModified('password')) { return next() }
@@ -25,12 +25,11 @@ const UserSchema = new mongoose.Schema({
 
 
 // Helper method for validating user's password.
-
 UserSchema.methods.comparePassword = function comparePassword(candidatePassword, cb) {
   bcrypt.compare(candidatePassword, this.password, (err, isMatch) => {
     cb(err, isMatch)
   })
 }
 
-
+// exports objects to mongodb/User (collection)
 module.exports = mongoose.model('User', UserSchema)
